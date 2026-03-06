@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Tetris</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #ffffff;
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0d0d0d 100%);
+        }
+
+        .top-bar {
+            width: 100%;
+            max-width: 490px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(30, 30, 30, 0.7);
+            border: 2px solid #00e5ff;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.5), inset 0 0 10px rgba(0, 229, 255, 0.2);
+            box-sizing: border-box;
+            backdrop-filter: blur(5px);
+        }
+
+        .top-bar h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #ff3366;
+            text-shadow: 0 0 10px #ff3366, 0 0 20px #ff3366;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .high-score-display {
+            text-align: right;
+        }
+
+        .high-score-label {
+            font-size: 0.8rem;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .high-score-value {
+            font-size: 1.5rem;
+            color: #ffdd00;
+            font-weight: 700;
+            text-shadow: 0 0 10px #ffdd00;
+        }
+
+        #game-wrapper {
+            position: relative;
+        }
+
+        #game-container {
+            display: flex;
+            gap: 20px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            transition: transform 0.05s ease-in-out;
+            position: relative;
+        }
+
+        .shake {
+            animation: shake-animation 0.4s cubic-bezier(.36, .07, .19, .97) both;
+        }
+
+        @keyframes shake-animation {
+
+            10%,
+            90% {
+                transform: translate3d(-2px, 0, 0);
+            }
+
+            20%,
+            80% {
+                transform: translate3d(4px, 0, 0);
+            }
+
+            30%,
+            50%,
+            70% {
+                transform: translate3d(-8px, 0, 0);
+            }
+
+            40%,
+            60% {
+                transform: translate3d(8px, 0, 0);
+            }
+        }
+
+        #tetris-board {
+            background-color: #000000;
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+
+        #side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 150px;
+        }
+
+        .panel-box {
+            background-color: #2c2c2c;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .panel-box h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+            color: #aaaaaa;
+        }
+
+        .panel-box span {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00e5ff;
+            text-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+        }
+
+        #next-piece-canvas {
+            background-color: #000000;
+            border: 2px solid #333;
+            border-radius: 5px;
+            margin-top: 10px;
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05);
+        }
+
+        #particles-canvas {
+            position: absolute;
+            top: 20px;
+            /* offset by game-container padding */
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .floating-text {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+            text-align: center;
+            width: 100%;
+            pointer-events: none;
+            z-index: 20;
+            animation: float-up 1.5s ease-out forwards;
+            text-shadow: 0 0 10px #fff, 0 0 20px #ff3366, 0 0 30px #ff3366;
+            left: 0;
+        }
+
+        @keyframes float-up {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.8);
+            }
+
+            20% {
+                opacity: 1;
+                transform: translateY(0) scale(1.2);
+            }
+
+            80% {
+                opacity: 1;
+                transform: translateY(-40px) scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) scale(1);
+            }
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            border: 2px solid #ff3366;
+            box-shadow: 0 0 30px rgba(255, 51, 102, 0.4);
+        }
+
+        #game-over h1 {
+            color: #ff3366;
+            margin-top: 0;
+        }
+
+        button {
+            background-color: #00e5ff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #00b3cc;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Main scaling wrapper for mobile responsiveness -->
+    <div id="app-container"
+        style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; transform-origin: center center; width: 512px;">
+
+        <!-- Top Bar for Gamification -->
+        <header class="top-bar">
+            <h1>TETRIS</h1>
+            <div class="high-score-display">
+                <div class="high-score-label">High Score</div>
+                <div class="high-score-value" id="high-score">0</div>
+            </div>
+        </header>
+
+        <div id="game-wrapper">
+            <div id="game-container">
+                <!-- Main Game Board -->
+                <canvas id="tetris-board" width="300" height="600"></canvas>
+
+                <!-- Particles Overlay -->
+                <canvas id="particles-canvas" width="300" height="600"></canvas>
+
+                <!-- Side Panel -->
+                <div id="side-panel">
+                    <div class="panel-box">
+                        <h2>Score</h2>
+                        <span id="score">0</span>
+                    </div>
+                    <div class="panel-box">
+                        <h2>Level</h2>
+                        <span id="level">1</span>
+                    </div>
+                    <div class="panel-box">
+                        <h2>Lines</h2>
+                        <span id="lines">0</span>
+                    </div>
+                    <div class="panel-box">
+                        <h2>Next Piece</h2>
+                        <canvas id="next-piece-canvas" width="120" height="120"></canvas>
+                    </div>
+                </div>
+
+                <!-- Container for floating text -->
+                <div id="floating-text-container"
+                    style="position: absolute; top: 0; left: 0; width: 340px; height: 640px; pointer-events: none; overflow: hidden; z-index: 30;">
+                </div>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="game-over">
+                <h1>Game Over!</h1>
+                <p>Final Score: <span id="final-score">0</span></p>
+                <button onclick="resetGame()">Play Again</button>
+            </div>
+
+        </div><!-- End app-container -->
+
+        <script>
+            // --- Constants & Canvas Setup ---
+            const canvas = document.getElementById('tetris-board');
+            const ctx = canvas.getContext('2d');
+            const nextCanvas = document.getElementById('next-piece-canvas');
+            const nextCtx = nextCanvas.getContext('2d');
+
+            // The classic tetris board is usually 10 columns by 20 rows.
+            const ROWS = 20;
+            const COLS = 10;
+            const BLOCK_SIZE = 30; // 30 pixels per grid square (30 * 10 = 300px width)
+            const NEXT_BLOCK_SIZE = 30;
+
+            // Vivid colors for the classic pieces
+            const COLORS = [
+                null,       // 0 is empty background
+                '#00FFFF',  // I - Cyan
+                '#0055FF',  // J - Blue
+                '#FFA500',  // L - Orange
+                '#FFDD00',  // O - Yellow
+                '#00FF00',  // S - Green
+                '#AA00FF',  // T - Purple
+                '#FF0000'   // Z - Red
+            ];
+
+            // The exact piece matrices. The number corresponds to the color array index.
+            const PIECES = [
+                [], // Empty
+                // I piece
+                [
+                    [0, 0, 0, 0],
+                    [1, 1, 1, 1],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                ],
+                // J piece
+                [
+                    [2, 0, 0],
+                    [2, 2, 2],
+                    [0, 0, 0],
+                ],
+                // L piece
+                [
+                    [0, 0, 3],
+                    [3, 3, 3],
+                    [0, 0, 0],
+                ],
+                // O piece
+                [
+                    [4, 4],
+                    [4, 4],
+                ],
+                // S piece
+                [
+                    [0, 5, 5],
+                    [5, 5, 0],
+                    [0, 0, 0],
+                ],
+                // T piece
+                [
+                    [0, 6, 0],
+                    [6, 6, 6],
+                    [0, 0, 0],
+                ],
+                // Z piece
+                [
+                    [7, 7, 0],
+                    [0, 7, 7],
+                    [0, 0, 0],
+                ]
+            ];
+
+            // --- Particles Setup ---
+            const pCanvas = document.getElementById('particles-canvas');
+            const pCtx = pCanvas.getContext('2d');
+            let particles = [];
+
+            // --- Game State Variables ---
+            let board = [];
+            let score = 0;
+            let highScore = localStorage.getItem('tetrisHighScore') || 0;
+            let lines = 0;
+            let level = 1;
+
+            let dropCounter = 0;
+            let dropInterval = 1000; // milliseconds before gravity pulls piece down
+            let lastTime = 0;
+            let animationId = null;
+            let gameOver = false;
+
+            let pieceBag = []; // 7-Bag random generator
+
+            // The currently falling piece context
+            const player = {
+                pos: { x: 0, y: 0 },
+                matrix: null
+            };
+
+            // The piece waiting to come next
+            const nextPlayer = {
+                matrix: null
+            };
+
+            // --- Initialization ---
+
+            // Create an empty multidimensional array for the playfield grid
+            function createMatrix(w, h) {
+                const matrix = [];
+                while (h--) {
+                    matrix.push(new Array(w).fill(0));
+                }
+                return matrix;
+            }
+
+            // --- 7-Bag Randomizer ---
+            /**
+             * Standard modern Tetris logic uses a 7-Bag system.
+             * Generates exactly one of each 7 pieces, randomizes them, and puts them in a "bag".
+             * You pull pieces out until the bag is empty, then generate a new bag.
+             * This prevents situations where you don't get an 'I' piece for 30 turns.
+             */
+            function generateBag() {
+                let bag = [1, 2, 3, 4, 5, 6, 7];
+                // Fisher-Yates array shuffle algorithm
+                for (let i = bag.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [bag[i], bag[j]] = [bag[j], bag[i]];
+                }
+                return bag;
+            }
+
+            function getNextPieceMatrix() {
+                if (pieceBag.length === 0) {
+                    pieceBag = generateBag();
+                }
+                const pieceType = pieceBag.pop();
+                return PIECES[pieceType];
+            }
+
+            // Spawn a new piece at the top middle of the board
+            function playerReset() {
+                if (!nextPlayer.matrix) {
+                    nextPlayer.matrix = getNextPieceMatrix();
+                }
+
+                player.matrix = nextPlayer.matrix;
+                nextPlayer.matrix = getNextPieceMatrix();
+                drawNextPiece();
+
+                // Center piece on the X axis, top of the board on Y axis
+                player.pos.y = 0;
+                player.pos.x = (Math.floor(COLS / 2)) - (Math.floor(player.matrix[0].length / 2));
+
+                // Immediate Game Over check
+                // If the spawn position immediately collides with existing blocks, the game is over.
+                if (collide(board, player)) {
+                    gameOver = true;
+                    showGameOver();
+                }
+            }
+
+            // --- Gamification Effects (Juice) ---
+            function shakeScreen() {
+                const container = document.getElementById('game-container');
+                container.classList.remove('shake');
+                void container.offsetWidth; // trigger reflow
+                container.classList.add('shake');
+                setTimeout(() => container.classList.remove('shake'), 400);
+            }
+
+            function showFloatingText(text, x, y, color = '#fff') {
+                const container = document.getElementById('floating-text-container');
+                const el = document.createElement('div');
+                el.innerText = text;
+                el.className = 'floating-text';
+                el.style.top = `${y}px`;
+                el.style.color = color;
+                container.appendChild(el);
+                setTimeout(() => { if (container.contains(el)) el.remove(); }, 1500);
+            }
+
+            function spawnParticles(x, y, color) {
+                for (let i = 0; i < 15; i++) {
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 1) * 10,
+                        life: 1,
+                        color: color
+                    });
+                }
+            }
+
+            function updateAndDrawParticles() {
+                pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.5; // gravity
+                    p.life -= 0.02;
+
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    pCtx.globalAlpha = p.life;
+                    pCtx.fillStyle = p.color;
+                    pCtx.fillRect(p.x, p.y, 4, 4);
+                }
+                pCtx.globalAlpha = 1.0;
+            }
+
+            // ==========================================
+            //         GRID COLLISION DETECTION
+            // ==========================================
+            /**
+             * Checks if the actively moving piece overlaps with blocks already locked in the grid
+             * or goes outside the boundaries of the playfield.
+             * 
+             * @param {Array} board - The 2D array of the entire game stage (ROWS x COLS).
+             * @param {Object} player - The active piece, containing its matrix (`m`) and current offset (`o`).
+             * @returns {boolean} - true if it collides/goes out of bounds, false otherwise.
+             */
+            function collide(board, player) {
+                const m = player.matrix; // Example: 3x3 array for a T-piece
+                const o = player.pos;    // Current global coordinates {x, y} of the matrix top-left corner
+
+                // Iterate over the piece's local grid (y is visually down, x is visually right)
+                for (let y = 0; y < m.length; ++y) {
+                    for (let x = 0; x < m[y].length; ++x) {
+
+                        // We only care about solid cells checking for collision. '0' is empty space in the shape bounding box.
+                        if (m[y][x] !== 0) {
+
+                            // Translate the local piece coordinates (x,y) to global board coordinates (boardX, boardY)
+                            const boardY = y + o.y;
+                            const boardX = x + o.x;
+
+                            // COLLISION CONDITION CHECKS:
+                            // 1. `boardY >= ROWS` : Has the solid block of the piece gone fully below the bottom floor?
+                            // 2. `boardX < 0` : Has the block breached the left-side wall?
+                            // 3. `boardX >= COLS` : Has the block breached the right-side wall?
+                            // 4. `board[boardY][boardX] !== 0` : Is there already a locked block standing right there?
+                            //    - Note: `board[boardY]` might be undefined if jumping the top of the board, so we use Optional Chaining `?.` 
+                            //      or short-circuiting to avoid type errors.
+                            if (
+                                boardY >= ROWS ||
+                                boardX < 0 ||
+                                boardX >= COLS ||
+                                (board[boardY] && board[boardY][boardX]) !== 0
+                            ) {
+                                return true; // Stop immediately, this is an illegal position.
+                            }
+                        }
+                    }
+                }
+                return false; // Loop finished with no overlaps, the position is valid.
+            }
+
+            // Locks the current piece into the `board` 2D array permanently
+            function merge(board, player) {
+                player.matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            board[y + player.pos.y][x + player.pos.x] = value;
+                        }
+                    });
+                });
+            }
+
+            // Clear full rows and add score
+            function playerSweep() {
+                let rowCount = 1;
+                let linesCleared = 0;
+
+                // Iterate from bottom up
+                outer: for (let y = board.length - 1; y >= 0; --y) {
+                    for (let x = 0; x < board[y].length; ++x) {
+                        if (board[y][x] === 0) {
+                            continue outer; // Hit an empty space, this line isn't full.
+                        }
+                    }
+
+                    // If code reaches here, it means no '0' was found, the line is fully filled.
+
+                    // Spawn particles across the line before clearing
+                    for (let px = 0; px < COLS; px++) {
+                        if (board[y][px] !== 0) {
+                            spawnParticles(px * BLOCK_SIZE + BLOCK_SIZE / 2, y * BLOCK_SIZE + BLOCK_SIZE / 2, COLORS[board[y][px]]);
+                        }
+                    }
+
+                    // Remove the full row
+                    const row = board.splice(y, 1)[0].fill(0);
+                    board.unshift(row); // Add the empty row buffer at the top
+                    ++y; // Re-evaluate the current Y index because all rows above just shifted down!
+
+                    linesCleared++;
+                    score += rowCount * 100;
+                    rowCount *= 2; // Extra combo multiplier for double/triple/tetris clears
+                }
+
+                if (linesCleared > 0) {
+                    lines += linesCleared;
+                    level = Math.floor(lines / 10) + 1; // Level up every 10 lines
+                    // Increase falling speed (dropInterval), capping it at 100ms minimum
+                    dropInterval = Math.max(100, 1000 - (level - 1) * 80);
+
+                    if (linesCleared === 4) {
+                        shakeScreen();
+                        showFloatingText("TETRIS!", 0, player.pos.y * BLOCK_SIZE, '#00e5ff');
+                    } else if (linesCleared > 1) {
+                        showFloatingText(`COMBO x${linesCleared}`, 0, player.pos.y * BLOCK_SIZE, '#ff00aa');
+                    }
+
+                    updateScoreBoard();
+                }
+            }
+
+            function updateScoreBoard() {
+                document.getElementById('score').innerText = score;
+                document.getElementById('level').innerText = level;
+                document.getElementById('lines').innerText = lines;
+
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('tetrisHighScore', highScore);
+                    document.getElementById('high-score').innerText = highScore;
+                }
+            }
+
+            // --- Movement Actions ---
+
+            function playerDrop() {
+                player.pos.y++; // Try moving down 1 level
+                if (collide(board, player)) {
+                    // If collision hit the floor or another piece:
+                    player.pos.y--;       // 1. Step backward to the last safe spot
+                    merge(board, player); // 2. "Freeze" piece permanently into the grid
+                    playerReset();        // 3. Drop next shape
+                    playerSweep();        // 4. Clean up any completed horizontal lines
+                }
+                dropCounter = 0;
+            }
+
+            function playerHardDrop() {
+                // Keep dropping until simulated collision
+                while (!collide(board, player)) {
+                    player.pos.y++;
+                }
+                // Step back from the collision frame
+                player.pos.y--;
+                merge(board, player);
+                shakeScreen(); // Add shake effect on hard drop
+                playerReset();
+                playerSweep();
+                dropCounter = 0;
+            }
+
+            function playerMove(dir) {
+                player.pos.x += dir;
+                // E.g. Player tries to move right (dir=1), if hit right wall: it steps back (dir=-1).
+                if (collide(board, player)) {
+                    player.pos.x -= dir;
+                }
+            }
+
+            // ==========================================
+            //               ROTATION MATRIX
+            // ==========================================
+            /**
+             * How 2D Matrix Rotation Works:
+             * To rotate a 2D square matrix 90 degrees, you apply a common linear algebra trick:
+             *   1. Transpose the matrix: Swap rows with columns.
+             *   2. Reverse the Rows or Columns: 
+             *        - Reverse each row = 90 deg Clockwise
+             *        - Reverse each column = 90 deg Counter-Clockwise
+             * 
+             * @param {Array} matrix - The 2D array of the shape bounding box (usually 3x3 or 4x4)
+             * @param {number} dir - Direction integers: 1 (Clockwise), -1 (Counter-Clockwise)
+             */
+            function rotateMatrix(matrix, dir) {
+                // Step 1: Transpose (flip along diagonal)
+                // Example 3x3 Matrix:
+                // [1, 2, 3]       [1, 4, 7]
+                // [4, 5, 6]  -->  [2, 5, 8]
+                // [7, 8, 9]       [3, 6, 9]
+                for (let y = 0; y < matrix.length; ++y) {
+                    for (let x = 0; x < y; ++x) {
+                        // Quick array element swap
+                        [
+                            matrix[x][y],
+                            matrix[y][x],
+                        ] = [
+                                matrix[y][x],
+                                matrix[x][y],
+                            ];
+                    }
+                }
+
+                // Step 2: Reverse components based on rotational direction
+                if (dir > 0) {
+                    // Clockwise: We reverse the order of arrays in every row
+                    // [1, 4, 7] --> [7, 4, 1]
+                    matrix.forEach(row => row.reverse());
+                } else {
+                    // Counter-Clockwise: We reverse the entire multi-dimensional array vertically.
+                    // Reverse the 'rows' placement upside down.
+                    matrix.reverse();
+                }
+            }
+
+            function playerRotate(dir) {
+                const startPosX = player.pos.x;
+                let offset = 1;
+
+                // Tentatively perform the rotation.
+                rotateMatrix(player.matrix, dir);
+
+                // "Wall Kick" Correction:
+                // If the user rotates while hugging a wall, the rotation might clip out of bounds (Collision).
+                // Instead of preventing the rotation completely, we "kick" or nudge the piece away from the wall.
+                while (collide(board, player)) {
+                    player.pos.x += offset; // Push X over
+
+                    // Formula to alternate directions pushing further: 1, -2, 3, -4 ...
+                    offset = -(offset + (offset > 0 ? 1 : -1));
+
+                    // If we've pushed more than the width of the piece and it STIL collides,
+                    // the rotation happens in a deeply jammed pocket. We abort everything.
+                    if (offset > player.matrix[0].length) {
+                        rotateMatrix(player.matrix, -dir); // Undo the rotation in the other direction
+                        player.pos.x = startPosX;          // Un-kick the position
+                        return;
+                    }
+                }
+            }
+
+            // --- Rendering ---
+
+            function drawMatrix(matrix, offset, context, blockSize) {
+                matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            context.fillStyle = COLORS[value];
+
+                            // Solid Fill
+                            context.fillRect(
+                                (x + offset.x) * blockSize,
+                                (y + offset.y) * blockSize,
+                                blockSize, blockSize
+                            );
+
+                            // Inner Dark Border for 3D bevel look
+                            context.strokeStyle = 'rgba(0,0,0,0.5)';
+                            context.lineWidth = 2;
+                            context.strokeRect(
+                                (x + offset.x) * blockSize,
+                                (y + offset.y) * blockSize,
+                                blockSize, blockSize
+                            );
+
+                            // Top Highlight Shimmer
+                            context.fillStyle = 'rgba(255,255,255,0.25)';
+                            context.fillRect(
+                                (x + offset.x) * blockSize,
+                                (y + offset.y) * blockSize,
+                                blockSize, blockSize / 4
+                            );
+                        }
+                    });
+                });
+            }
+
+            function drawNextPiece() {
+                // Wipes the sidebar preview terminal
+                nextCtx.fillStyle = '#000';
+                nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+
+                if (nextPlayer.matrix) {
+                    // Determine visually centered offset for a 120x120 canvas with 30px blocks (Max 4 blocks wide/high)
+                    const w = nextPlayer.matrix[0].length;
+                    const h = nextPlayer.matrix.length;
+                    const offsetX = (4 - w) / 2;
+                    const offsetY = (4 - h) / 2;
+
+                    drawMatrix(nextPlayer.matrix, { x: offsetX, y: offsetY }, nextCtx, NEXT_BLOCK_SIZE);
+                }
+            }
+
+            function draw() {
+                // Total black clear screen
+                ctx.fillStyle = '#111';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw fallen dead blocks on grid
+                drawMatrix(board, { x: 0, y: 0 }, ctx, BLOCK_SIZE);
+
+                // Draw active moving piece
+                drawMatrix(player.matrix, player.pos, ctx, BLOCK_SIZE);
+
+                updateAndDrawParticles();
+            }
+
+            // --- Game Main Loop ---
+
+            function update(time = 0) {
+                if (gameOver) return;
+
+                // Delta-time based animation provides consistent speeds despite monitor Hz rates
+                const deltaTime = time - lastTime;
+                lastTime = time;
+
+                dropCounter += deltaTime;
+                if (dropCounter > dropInterval) {
+                    playerDrop();
+                }
+
+                draw();
+                animationId = requestAnimationFrame(update);
+            }
+
+            // --- Control Handling ---
+
+            document.addEventListener('keydown', event => {
+                if (gameOver) return;
+                // Prevent default scrolling keys
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) {
+                    event.preventDefault();
+                }
+
+                switch (event.code) {
+                    case 'ArrowLeft':
+                        playerMove(-1);
+                        break;
+                    case 'ArrowRight':
+                        playerMove(1);
+                        break;
+                    case 'ArrowDown':
+                        playerDrop();
+                        break;
+                    case 'ArrowUp':
+                        playerRotate(1); // 1 is Clockwise Rotation
+                        break;
+                    case 'Space':
+                        playerHardDrop();
+                        break;
+                }
+            });
+
+            // --- App Reset ---
+
+            function showGameOver() {
+                cancelAnimationFrame(animationId);
+                document.getElementById('final-score').innerText = score;
+                document.getElementById('game-over').style.display = 'block';
+            }
+
+            function resetGame() {
+                board = createMatrix(COLS, ROWS);
+                score = 0;
+                lines = 0;
+                level = 1;
+                dropInterval = 1000;
+
+                // Initialize high score display on load
+                document.getElementById('high-score').innerText = highScore;
+
+                updateScoreBoard();
+                document.getElementById('game-over').style.display = 'none';
+                pieceBag = [];
+                gameOver = false;
+                particles = []; // Clear particles
+
+                playerReset();
+
+                lastTime = performance.now();
+                update(performance.now());
+            }
+
+            // Bootstrap App
+            resetGame();
+
+            // --- Responsiveness ---
+            function handleResize() {
+                const container = document.getElementById('app-container');
+                // The native game width is 512px, height is around 720px
+                // Adding some padding to the ideal target size
+                const scaleX = window.innerWidth / 540;
+                const scaleY = window.innerHeight / 760;
+                // Scale down if the screen is too small, max scale is 1
+                const scale = Math.min(scaleX, scaleY, 1);
+
+                container.style.transform = `scale(${scale})`;
+            }
+
+            window.addEventListener('resize', handleResize);
+            handleResize(); // trigger initial layout scale
+
+        </script>
+</body>
+
+</html>
