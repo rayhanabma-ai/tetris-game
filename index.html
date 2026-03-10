@@ -298,7 +298,131 @@
             font-weight: bold;
         }
 
-        /* Removed media query so buttons are always visible for testing */
+        /* Auth & Leaderboard Modals */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-box {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #00e5ff;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+            text-align: center;
+            max-width: 300px;
+            width: 100%;
+        }
+
+        .modal-box h2 {
+            color: #ff3366;
+            margin-top: 0;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+
+        .btn-auth {
+            width: 100%;
+            margin-top: 10px;
+            background-color: #00e5ff;
+            color: #000;
+            padding: 12px;
+        }
+
+        .btn-guest {
+            background-color: transparent;
+            color: #aaa;
+            border: 1px solid #555;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .leaderboard-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #111;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #ffdd00;
+            box-shadow: 0 0 25px rgba(255, 221, 0, 0.4);
+            z-index: 90;
+            display: none;
+            width: 80%;
+            max-width: 320px;
+        }
+
+        .leaderboard-container h2 {
+            color: #ffdd00;
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .lb-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            color: #fff;
+            font-size: 1.1rem;
+        }
+
+        .lb-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .lb-list li:nth-child(1) {
+            color: #ffdd00;
+            font-weight: bold;
+        }
+
+        .lb-list li:nth-child(2) {
+            color: #c0c0c0;
+        }
+
+        .lb-list li:nth-child(3) {
+            color: #cd7f32;
+        }
+
+        .auth-bar {
+            width: 100%;
+            width: 490px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .auth-bar a {
+            color: #00e5ff;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-left: 10px;
+        }
     </style>
 </head>
 
@@ -307,6 +431,15 @@
     <!-- Main scaling wrapper for mobile responsiveness -->
     <div id="app-container"
         style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; transform-origin: center center; width: 512px;">
+
+        <!-- Auth Status Bar -->
+        <div class="auth-bar">
+            <span id="user-display">Not logged in</span>
+            <div>
+                <a onclick="window.showLeaderboard()">Leaderboard</a>
+                <a id="btn-logout" onclick="window.logoutUser()" style="display: none;">Logout</a>
+            </div>
+        </div>
 
         <!-- Top Bar for Gamification -->
         <header class="top-bar">
@@ -370,9 +503,139 @@
                 </div>
             </div>
 
+            <!-- Login Modal -->
+            <div id="auth-modal" class="modal-overlay">
+                <div class="modal-box">
+                    <h2>RAYTRIS ACCOUNT</h2>
+                    <input type="email" id="email-input" placeholder="Email">
+                    <input type="password" id="password-input" placeholder="Password">
+                    <p id="auth-error" style="color: red; font-size: 0.8rem; display: none;"></p>
+                    <button class="btn-auth" onclick="window.loginOrRegister(false)">Login</button>
+                    <button class="btn-auth" onclick="window.loginOrRegister(true)"
+                        style="background-color: #ff3366; color: white;">Register</button>
+                    <button class="btn-guest" onclick="window.playAsGuest()">Play as Guest</button>
+                </div>
+            </div>
+
+            <!-- Leaderboard Modal -->
+            <div id="leaderboard-modal" class="leaderboard-container">
+                <h2>GLOBAL TOP 10</h2>
+                <ul class="lb-list" id="lb-list-content">
+                    <li>Loading...</li>
+                </ul>
+                <button class="btn-auth" style="margin-top:20px;" onclick="window.hideLeaderboard()">Close</button>
+            </div>
+
         </div><!-- End app-container -->
 
-        <script>
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+            import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+            import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyBoqXg2cybdPtiNBR1SyB-a4-3qkpkVWE0",
+                authDomain: "raytris-4b205.firebaseapp.com",
+                projectId: "raytris-4b205",
+                storageBucket: "raytris-4b205.firebasestorage.app",
+                messagingSenderId: "759216561218",
+                appId: "1:759216561218:web:de511a41dbdf20128b21db",
+                measurementId: "G-4LMEKP01S3"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            let currentUser = null;
+
+            // --- Authentication Logic ---
+            window.playAsGuest = () => {
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('user-display').innerText = "Playing as Guest";
+                document.getElementById('btn-logout').style.display = 'none';
+                window.resetGame(); // Ensure game resets when they start
+            };
+
+            window.loginOrRegister = async (isRegister) => {
+                const email = document.getElementById('email-input').value;
+                const password = document.getElementById('password-input').value;
+                const errorEl = document.getElementById('auth-error');
+
+                if (!email || !password) {
+                    errorEl.innerText = "Please enter email and password.";
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    if (isRegister) {
+                        await createUserWithEmailAndPassword(auth, email, password);
+                    } else {
+                        await signInWithEmailAndPassword(auth, email, password);
+                    }
+                    document.getElementById('auth-modal').style.display = 'none';
+                    errorEl.style.display = 'none';
+                    window.resetGame();
+                } catch (error) {
+                    errorEl.innerText = error.message;
+                    errorEl.style.display = 'block';
+                }
+            };
+
+            window.logoutUser = () => {
+                signOut(auth).then(() => {
+                    currentUser = null;
+                    document.getElementById('auth-modal').style.display = 'flex';
+                });
+            };
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('auth-modal').style.display = 'none';
+                    document.getElementById('user-display').innerText = user.email;
+                    document.getElementById('btn-logout').style.display = 'inline-block';
+                } else {
+                    currentUser = null;
+                    document.getElementById('user-display').innerText = "Not logged in";
+                    document.getElementById('btn-logout').style.display = 'none';
+                    document.getElementById('auth-modal').style.display = 'flex';
+                }
+            });
+
+            // --- Leaderboard Logic ---
+            window.showLeaderboard = async () => {
+                const lbModal = document.getElementById('leaderboard-modal');
+                const listContent = document.getElementById('lb-list-content');
+                lbModal.style.display = 'block';
+                listContent.innerHTML = '<li>Loading...</li>';
+
+                try {
+                    const q = query(collection(db, "highscores"), orderBy("score", "desc"), limit(10));
+                    const querySnapshot = await getDocs(q);
+                    listContent.innerHTML = '';
+                    let rank = 1;
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span>#${rank} ${data.email.split('@')[0]}</span> <span>${data.score}</span>`;
+                        listContent.appendChild(li);
+                        rank++;
+                    });
+                    if (querySnapshot.empty) {
+                        listContent.innerHTML = '<li>No scores yet!</li>';
+                    }
+                } catch (error) {
+                    console.error("Error loading leaderboard", error);
+                    listContent.innerHTML = '<li>Error loading scores.</li>';
+                }
+            };
+
+            window.hideLeaderboard = () => {
+                document.getElementById('leaderboard-modal').style.display = 'none';
+            };
+
             // --- Constants & Canvas Setup ---
             const canvas = document.getElementById('tetris-board');
             const ctx = canvas.getContext('2d');
@@ -690,11 +953,11 @@
                         showFloatingText(`COMBO x${linesCleared}`, 0, player.pos.y * BLOCK_SIZE, '#ff00aa');
                     }
 
-                    updateScoreBoard();
+                    updateScoreBoard(true); // pass true to indicate a major score update where we might save
                 }
             }
 
-            function updateScoreBoard() {
+            function updateScoreBoard(saveToCloud = false) {
                 document.getElementById('score').innerText = score;
                 document.getElementById('level').innerText = level;
                 document.getElementById('lines').innerText = lines;
@@ -703,6 +966,23 @@
                     highScore = score;
                     localStorage.setItem('tetrisHighScore', highScore);
                     document.getElementById('high-score').innerText = highScore;
+                }
+            }
+
+            // Separated this so we only fire cloud saves on game over, saving database reads/writes
+            async function saveScoreToCloud() {
+                if (currentUser && score > 0) {
+                    try {
+                        await addDoc(collection(db, "highscores"), {
+                            email: currentUser.email,
+                            score: score,
+                            uid: currentUser.uid,
+                            timestamp: Date.now()
+                        });
+                        console.log("Score saved to leaderboard");
+                    } catch (e) {
+                        console.error("Error adding document: ", e);
+                    }
                 }
             }
 
@@ -973,6 +1253,7 @@
                 cancelAnimationFrame(animationId);
                 document.getElementById('final-score').innerText = score;
                 document.getElementById('game-over').style.display = 'block';
+                saveScoreToCloud(); // Save to Firebase Leaderboard when they lose!
             }
 
             function resetGame() {
@@ -997,8 +1278,9 @@
                 update(performance.now());
             }
 
-            // Bootstrap App
-            resetGame();
+            window.resetGame = resetGame; // Expose module function to global window for HTML onclick
+
+            // Bootstrap App happens via user clicking "Login" or "Guest" now instead of immediately.
 
             // --- Responsiveness ---
             function handleResize() {
