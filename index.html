@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Tetris</title>
+    <title>RAYTRIS</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body {
@@ -229,6 +229,76 @@
         button:hover {
             background-color: #00b3cc;
         }
+
+        /* Mobile Controls Styling */
+        #mobile-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 25px;
+            width: 100%;
+            touch-action: manipulation;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            font-size: 2.2rem;
+            color: #fff;
+            border: 3px solid;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(0, 0, 0, 0.25) 100%);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3), 0 6px 15px rgba(0, 0, 0, 0.5);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            transition: transform 0.05s, filter 0.05s;
+        }
+
+        .control-btn:active,
+        .control-btn.active {
+            transform: scale(0.9);
+            filter: brightness(1.3);
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5), 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-t {
+            background-color: #AA00FF;
+            border-color: #d480ff;
+            font-weight: bold;
+        }
+
+        .btn-l {
+            background-color: #FFA500;
+            border-color: #ffc966;
+            font-weight: bold;
+        }
+
+        .btn-s {
+            background-color: #00FF00;
+            border-color: #80ff80;
+            font-weight: bold;
+        }
+
+        .btn-j {
+            background-color: #0055FF;
+            border-color: #6699ff;
+            font-weight: bold;
+        }
+
+        /* Removed media query so buttons are always visible for testing */
     </style>
 </head>
 
@@ -240,7 +310,7 @@
 
         <!-- Top Bar for Gamification -->
         <header class="top-bar">
-            <h1>Raytris</h1>
+            <h1>RAYTRIS</h1>
             <div class="high-score-display">
                 <div class="high-score-label">High Score</div>
                 <div class="high-score-value" id="high-score">0</div>
@@ -286,6 +356,18 @@
                 <h1>Game Over!</h1>
                 <p>Final Score: <span id="final-score">0</span></p>
                 <button onclick="resetGame()">Play Again</button>
+            </div>
+
+            <!-- Mobile On-Screen Controls -->
+            <div id="mobile-controls">
+                <div class="control-row">
+                    <div id="btn-up" class="control-btn btn-t">↻</div>
+                </div>
+                <div class="control-row">
+                    <div id="btn-left" class="control-btn btn-l">←</div>
+                    <div id="btn-down" class="control-btn btn-s">↓</div>
+                    <div id="btn-right" class="control-btn btn-j">→</div>
+                </div>
             </div>
 
         </div><!-- End app-container -->
@@ -843,6 +925,48 @@
                 }
             });
 
+            // --- Mobile Controls Handling ---
+            const btnUp = document.getElementById('btn-up');
+            const btnLeft = document.getElementById('btn-left');
+            const btnRight = document.getElementById('btn-right');
+            const btnDown = document.getElementById('btn-down');
+
+            function addTouchMouseEvents(element, onPress, onRelease) {
+                if (!element) return;
+                const pressHandler = (e) => {
+                    if (e.cancelable) e.preventDefault();
+                    if (gameOver) return;
+                    element.classList.add('active');
+                    if (onPress) onPress();
+                };
+                const releaseHandler = (e) => {
+                    if (e.cancelable) e.preventDefault();
+                    element.classList.remove('active');
+                    if (onRelease) onRelease();
+                };
+                element.addEventListener('touchstart', pressHandler, { passive: false });
+                element.addEventListener('mousedown', pressHandler);
+                element.addEventListener('touchend', releaseHandler, { passive: false });
+                element.addEventListener('mouseup', releaseHandler);
+                element.addEventListener('mouseleave', releaseHandler);
+                element.addEventListener('contextmenu', e => e.preventDefault());
+            }
+
+            addTouchMouseEvents(btnUp, () => playerRotate(1));
+            addTouchMouseEvents(btnLeft, () => playerMove(-1));
+            addTouchMouseEvents(btnRight, () => playerMove(1));
+
+            let downInterval;
+            addTouchMouseEvents(btnDown,
+                () => {
+                    playerDrop(); // Initial drop logic
+                    downInterval = setInterval(() => playerDrop(), 60);
+                },
+                () => {
+                    clearInterval(downInterval);
+                }
+            );
+
             // --- App Reset ---
 
             function showGameOver() {
@@ -882,7 +1006,7 @@
                 // The native game width is 512px, height is around 720px
                 // Adding some padding to the ideal target size
                 const scaleX = window.innerWidth / 540;
-                const scaleY = window.innerHeight / 760;
+                const scaleY = window.innerHeight / 960; // Increased to accommodate mobile buttons
                 // Scale down if the screen is too small, max scale is 1
                 const scale = Math.min(scaleX, scaleY, 1);
 
